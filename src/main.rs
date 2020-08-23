@@ -1,5 +1,10 @@
+extern crate toml;
+
 use argh::FromArgs;
 use rand::Rng;
+use std::fs;
+use serde_derive::Deserialize;
+use serde::{Serialize, Deserialize};
 
 #[derive(FromArgs)]
 /// Reach new heights.
@@ -13,14 +18,24 @@ struct GoUp {
     toml_path: Option<String>,
 }
 
+#[derive(Deserialize)]
+pub struct CanInfo {
+    pub period_ms: u32,
+    pub can_id: u32,
+    pub data: [u32; 8],
+}
+
 pub use socketcan::{CANFrame, CANSocket, CANSocketOpenError};
 fn main() {
     println!("fuzzbus Starting!");
 
     let up: GoUp = argh::from_env();
-
-    random(up.interface);
-
+    if up.toml_path == None {
+        random(up.interface);
+    }
+    else {
+        conditional_fuzz(up.interface, up.toml_path.unwrap());
+    }
 }
 
 fn random(interface: String) {
@@ -39,4 +54,14 @@ fn random(interface: String) {
         socket.write_frame(&frame).unwrap();
     }
 
+}
+
+fn conditional_fuzz(interface: String, config_path: String) {
+    
+    let toml_data = fs::read_to_string(config_path).unwrap();
+
+    let can_info: CanInfo = toml::from_str(&toml_data).unwrap();
+
+    println!("{:?}",toml_data);
+    //println!("canid: {} data: {:?} period: {} ", can_info.can_id, can_info.data, can_info.period_ms);
 }
